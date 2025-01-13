@@ -10,7 +10,7 @@ function App() {
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, 1fr)',
                 gap: 1,
-                minHeight: '100vh',
+                minHeight: 'auto',
                 gridTemplateAreas: `
                     "searchinput . . togglecolormode"
                     "item . . ."
