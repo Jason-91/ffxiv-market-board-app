@@ -31,8 +31,8 @@ const useServers = () => {
       })
       .catch((error) => {
         if (error instanceof CanceledError) return;
-        setError(error.message || 'Failed to fetch data centers');
-      })
+        setError('Failed to fetch data centers');
+    })
       .finally(() => setLoading(false));
 
     return () => controller.abort();
