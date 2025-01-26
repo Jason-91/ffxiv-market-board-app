@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import TextField from '@mui/material/TextField';
+import Autocomplete from '@mui/material/Autocomplete';
 
 interface Item {
     Icon: {
@@ -12,126 +14,67 @@ interface Item {
 }
 
 const SearchInput: React.FC = () => {
+    const [open, setOpen] = useState(false);
+    const [options, setOptions] = useState<Item[]>([]);
+    const loading = open && options.length === 0;
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchResults, setSearchResults] = useState<Item[] | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const backendURL = "http://localhost:8000"; // Important: Make sure this is correct!
-    const dropdownRef = useRef<HTMLUListElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const backendURL = "http://localhost:8000";
 
     useEffect(() => {
-        let timer: ReturnType<typeof setTimeout>;
-        let isMounted = true;
+        let active = true;
+
+        if (!loading) {
+            return undefined;
+        }
 
         const fetchItems = async () => {
-            if (searchTerm.trim() === '') {
-                setSearchResults(null);
-                setIsLoading(false);
-                return;
-            }
-
-            setIsLoading(true);
             try {
                 const response = await axios.get<Item[]>(`${backendURL}/items?item=${searchTerm.trim()}`);
-                if (isMounted) {
-                    setSearchResults(response.data);
+                if (active) {
+                    setOptions(response.data);
                 }
             } catch (error) {
                 console.error("Error fetching data:", error);
-                if (isMounted) {
-                    setSearchResults(null);
-                }
-            } finally {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
             }
         };
 
-        if (searchTerm.trim() !== '') {
-            timer = setTimeout(() => {
-                fetchItems();
-            }, 300);
+        fetchItems();
+
+        return () => {
+            active = false;
+        };
+    }, [loading, searchTerm]);
+
+    const handleInputChange = (_event: any, newInputValue: string) => {
+        setSearchTerm(newInputValue);
+        if (newInputValue.trim() === "") {
+            setOpen(false);
+            setOptions([]); // Clear options when input is empty
         } else {
-            setSearchResults(null);
-            setIsDropdownOpen(false);
+            setOpen(true);
         }
-
-        return () => {
-            clearTimeout(timer);
-            isMounted = false;
-        };
-    }, [searchTerm, backendURL]);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) && inputRef.current && !inputRef.current.contains(event.target as Node)) {
-                setIsDropdownOpen(false);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    const handleItemClick = (itemName: string) => {
-        setSearchTerm(itemName);
-        setSearchResults(null);
-        setIsDropdownOpen(false);
-    };
-
-    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchTerm(event.target.value);
-        setIsDropdownOpen(true);
     };
 
     return (
-        <div style={{ position: 'relative', width: '300px' }}>
-            <input
-                type="text"
-                value={searchTerm}
-                onChange={handleInputChange}
-                placeholder="Search for an item..."
-                style={{ width: '100%' }}
-                ref={inputRef}
-            />
-
-            {isLoading && <div>Loading...</div>}
-
-            {searchResults && searchResults.length > 0 && isDropdownOpen && (
-                <ul
-                    style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        width: '100%',
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        border: '1px solid #ccc',
-                        borderRadius: '4px',
-                        backgroundColor: 'white',
-                        zIndex: 1,
-                        listStyleType: 'none',
-                        padding: 0,
-                        margin: 0,
-                    }}
-                    ref={dropdownRef}
-                >
-                    {searchResults.map((item) => (
-                        <li
-                            key={item.Name}
-                            onClick={() => handleItemClick(item.Name)}
-                            style={{ padding: '5px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
-                        >
-                            {item.Name}
-                        </li>
-                    ))}
-                </ul>
+        <Autocomplete
+            id="search-items"
+            sx={{ width: 300 }}
+            open={open}
+            onOpen={() => {
+                setOpen(true);
+            }}
+            onClose={() => {
+                setOpen(false);
+            }}
+            getOptionLabel={(option) => option.Name}
+            isOptionEqualToValue={(option, value) => option.Name === value.Name}
+            options={options}
+            loading={loading}
+            onInputChange={handleInputChange}
+            renderInput={(params) => (
+                <TextField {...params} label="Search for an item..." />
             )}
-        </div>
+        />
     );
 };
 
